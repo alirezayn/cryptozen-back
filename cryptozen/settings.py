@@ -23,7 +23,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = "django-insecure-w5(nyxqtw)#tr=4102xyvgiy559@^9e+_+mrxn74e^#r+m#o*-"
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = ['back.cryptozen360.com', 'www.back.cryptozen360.com', '127.0.0.1', 'localhost',"28862fb69a64.ngrok-free.app"]
 
@@ -33,7 +33,8 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:8000",
     "http://localhost:5173",
     "http://localhost:4173",
-    "https://back.cryptozen360.com"
+    "https://back.cryptozen360.com",
+    "https://cryptozen360.vercel.app"
 ]
 # Application definition
 
