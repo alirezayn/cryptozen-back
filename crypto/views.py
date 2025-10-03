@@ -126,18 +126,18 @@ class CryptoChartViewSet(viewsets.ViewSet):
     def list(self, request):
         # داده استاتیک محاسبه‌شده
         response_data = [
-            { "name": "Jun 2024", "BTC": 0.0, "ETH": 0.0, "CryptoZen": 0.0 },
-            { "name": "Jul 2024", "BTC": 3.0, "ETH": -5.8, "CryptoZen": 40.93 },
-            { "name": "Aug 2024", "BTC": -8.8, "ETH": -22.3, "CryptoZen": -1.89 },
-            { "name": "Sep 2024", "BTC": 7.4, "ETH": 3.6, "CryptoZen": 41.46 },
-            { "name": "Oct 2024", "BTC": 10.9, "ETH": -3.3, "CryptoZen": 58.23 },
-            { "name": "Nov 2024", "BTC": 37.4, "ETH": 47.2, "CryptoZen": 2.27 },
-            { "name": "Dec 2024", "BTC": -3.1, "ETH": -10.1, "CryptoZen": 33.27 },
-            { "name": "Jan 2025", "BTC": 9.6, "ETH": -1.0, "CryptoZen": 44.71 },
-            { "name": "Feb 2025", "BTC": -17.6, "ETH": -32.2, "CryptoZen": 11.61 },
-            { "name": "Mar 2025", "BTC": -2.2, "ETH": -18.5, "CryptoZen": 35.61 },
-            { "name": "Apr 2025", "BTC": 14.1, "ETH": -1.6, "CryptoZen": 58.86 },
-            { "name": "May 2025", "BTC": 11.1, "ETH": 41.0, "CryptoZen": 51.1 }
+            { "name": "Jun 2024", "BTC": 1000.0, "ETH": 1000.0, "CryptoZen": 1000.0 },
+            { "name": "Jul 2024", "BTC": 1030.0, "ETH": 942.0, "CryptoZen": 1409.3 },
+            { "name": "Aug 2024", "BTC": 939.36, "ETH": 731.93, "CryptoZen": 1382.66 },
+            { "name": "Sep 2024", "BTC": 1008.87, "ETH": 758.28, "CryptoZen": 1955.91 },
+            { "name": "Oct 2024", "BTC": 1118.84, "ETH": 733.26, "CryptoZen": 3094.84 },
+            { "name": "Nov 2024", "BTC": 1537.29, "ETH": 1079.36, "CryptoZen": 3165.09 },
+            { "name": "Dec 2024", "BTC": 1489.63, "ETH": 970.34, "CryptoZen": 4218.12 },
+            { "name": "Jan 2025", "BTC": 1632.63, "ETH": 960.64, "CryptoZen": 6104.04 },
+            { "name": "Feb 2025", "BTC": 1345.29, "ETH": 651.31, "CryptoZen": 6812.72 },
+            { "name": "Mar 2025", "BTC": 1315.69, "ETH": 530.82, "CryptoZen": 9238.73 },
+            { "name": "Apr 2025", "BTC": 1501.2, "ETH": 522.33, "CryptoZen": 14676.65 },
+            { "name": "May 2025", "BTC": 1667.83, "ETH": 736.49, "CryptoZen": 22176.42 }
         ]
 
         return Response(response_data)
