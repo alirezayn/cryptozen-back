@@ -289,7 +289,7 @@ class PaymentHistoryViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = PaymentHistorySerializer
 
     def get_queryset(self):
-        return PaymentHistory.objects.filter(user=self.request.user)
+        return PaymentHistory.objects.filter(user=self.request.user,status="success")
 
 
 class PaymentViewSet(viewsets.ReadOnlyModelViewSet):
@@ -297,7 +297,7 @@ class PaymentViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = PaymentSerializer
 
     def get_queryset(self):
-        return Payment.objects.filter(user=self.request.user)
+        return Payment.objects.filter(user=self.request.user).exclude(status="pending")
 
 
 class SubscriptionPlanViewSet(viewsets.ReadOnlyModelViewSet):
