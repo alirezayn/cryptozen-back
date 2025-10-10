@@ -29,6 +29,9 @@ from rest_framework.request import Request
 from wallet.models import UserWallet
 from dateutil.relativedelta import relativedelta
 
+from decimal import Decimal
+
+
 PLAN_DETAILS = {
     "basic": {"price": 80, "days": 30, "period": "monthly"},
     "quarterly": {"price": 70 * 3, "days": 90, "period": "three_month"},
@@ -146,14 +149,16 @@ class SubscriptionViewSet(viewsets.ViewSet):
                 subscription=subscription,
                 amount=price * plan_data.months,
                 currency="USD",
-                status="withdraw",
+                status="paid",
+                method="withdraw",
                 cryptomus_payment_uuid=f"internal-{now().timestamp()}",  # داخلی
             )
 
             # payed for collab
             link = CollabLink.objects.filter(join_users=user).first()
             if link:
-                link.cost_from_join_users += 0.5 * price
+                percent = link.cost_from_join_users / 100
+                link.reward += percent * price
                 link.save()
 
             return Response({"status": "Subscription activated using wallet balance.","payment_url": f"{settings.FRONTEND_URL}/dashboard"})
@@ -202,7 +207,9 @@ class SubscriptionViewSet(viewsets.ViewSet):
         # payed for collab
         link = CollabLink.objects.filter(join_users=user).first()
         if link:
-            link.cost_from_join_users += 0.5 * price
+            percent = link.cost_from_join_users / 100
+            
+            link.reward += percent * price
             link.save()
 
         return Response({"payment_url": res["invoice_url"]})

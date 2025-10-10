@@ -8,6 +8,8 @@ from .serializers import (
     VerificationStatusSerializer,
     ProfileAnswersSerializer,
 )
+from django.utils.crypto import get_random_string
+from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView
@@ -64,22 +66,29 @@ class UserViewSet(viewsets.ViewSet):
         return Response(serializer.data)
 
     @action(detail=False, methods=["post"], permission_classes=[permissions.AllowAny])
-    def signup(self, request):
+    def signup(self, request:Request):
+
         serializer = UserSerializer(data=request.data)
         if serializer.is_valid():
             user = serializer.save()
-
+            
             referral_id = request.data.get("referral_id")
             if referral_id:
                 try:
-                    link = CollabLink.objects.get(collab_id=referral_id)
+                    collab_user = User.objects.get(user_id=referral_id)
+                    link = CollabLink.objects.get(owner=collab_user)
                     link.join_users.add(user)
                     link.save()
-                except CollabLink.DoesNotExist:
-                    pass
+                    collab_user.referrals += 1 
+                    collab_user.save()
 
+                except Exception as e:
+                    print(e)
+            else:
+                CollabLink.objects.create(owner=user)
+            
             return Response(serializer.data, status=status.HTTP_201_CREATED)
-
+            
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=False, methods=["put"], url_path="update-profile")
@@ -277,3 +286,165 @@ class UserViewSet(viewsets.ViewSet):
                 {"success": False, "message": "Invalid username or password."},
                 status=status.HTTP_401_UNAUTHORIZED
             )
+
+    @action(detail=False, methods=["post"], permission_classes=[permissions.AllowAny], authentication_classes=[])
+    def login(self, request:Request):
+        """Authenticate user and return JWT tokens"""
+        username = request.data.get("username")
+        password = request.data.get("password")
+
+        if not username or not password:
+            return Response(
+                {"error": "Username and password are required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        user = authenticate(username=username, password=password)
+        if user is None:
+            return Response(
+                {"error": "Invalid username or password."},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+        refresh = RefreshToken.for_user(user)
+        access_token = str(refresh.access_token)
+        print(str(refresh))
+        refresh_token = str(refresh)
+        CollabLink.objects.get_or_create(owner=user)
+
+
+        user_data = UserProfileSerializer(user, context={"request": request}).data
+
+        return Response({
+            "token": access_token,
+            "refresh_token": refresh_token,
+            "user": user_data,
+            "message": "Login successful."
+        }, status=status.HTTP_200_OK)
+    
+    @action(detail=False, methods=["post"], permission_classes=[permissions.AllowAny], authentication_classes=[], url_path="refresh-token")
+    def refresh(self, request):
+        """Generate new access token using refresh token"""
+        refresh_token = request.data.get("refresh")
+
+        if not refresh_token:
+            return Response({"error": "Refresh token is required."}, status=400)
+
+        try:
+            refresh = RefreshToken(refresh_token)
+            new_access_token = str(refresh.access_token)
+            return Response({"access": new_access_token}, status=200)
+
+        except TokenError:
+            return Response({"error": "Invalid or expired refresh token."}, status=401)
+        
+
+    @action(
+        detail=False,
+        methods=["post"],
+        url_path="forget-password",
+        permission_classes=[AllowAny],
+        authentication_classes=[],
+    )
+    def forget_password(self, request:Request):
+        """Send password reset link to user's email"""
+        email = request.data.get("email")
+        if not email:
+            return Response({"error": "Email is required."}, status=400)
+
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return Response({"error": "User with this email does not exist."}, status=404)
+
+        # 🔑 ساختن توکن ساده (می‌تونی از jwt یا itsdangerous یا default_token_generator هم استفاده کنی)
+        reset_token = get_random_string(length=32)
+        user.password_reset_token = reset_token
+        user.password_reset_expiry = now() + timedelta(hours=1)  # یک ساعت اعتبار
+        user.save()
+
+        reset_link = f"{settings.FRONTEND_URL}/reset-password?token={reset_token}"
+
+        # ارسال ایمیل
+        html_content = render_to_string(
+            "email/reset_password.html",
+            {"reset_link": reset_link, "username": user.username},
+        )
+
+        email_msg = EmailMultiAlternatives(
+            subject="🔑 Reset your CryptoZen password",
+            body=f"Click here to reset your password: {reset_link}",
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[user.email],
+        )
+        email_msg.attach_alternative(html_content, "text/html")
+        email_msg.send()
+
+        return Response({"message": "Password reset link sent to your email."}, status=200)
+
+    @action(
+        detail=False,
+        methods=["post"],
+        url_path="reset-password/confirm",
+        permission_classes=[AllowAny],
+        authentication_classes=[],
+    )
+    def reset_password_confirm(self, request:Request):
+        """
+        Confirm password reset using token and set a new password.
+        Expected payload: { "token": "...", "new_password": "..." }
+        (اختیاری: "confirm_password")
+        """
+        token = request.data.get("token")
+        new_password = request.data.get("new_password")
+        confirm_password = request.data.get("confirm_password")
+
+        if not token or not new_password:
+            return Response(
+                {"error": "Token and new_password are required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if confirm_password is not None and new_password != confirm_password:
+            return Response(
+                {"error": "Passwords do not match."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            user = User.objects.get(password_reset_token=token)
+        except User.DoesNotExist:
+            return Response(
+                {"error": "Invalid or expired token."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not user.password_reset_expiry or now() > user.password_reset_expiry:
+            # پاک‌سازی توکن منقضی
+            user.password_reset_token = None
+            user.password_reset_expiry = None
+            user.save(update_fields=["password_reset_token", "password_reset_expiry"])
+            return Response(
+                {"error": "Token has expired."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # تنظیم پسورد جدید
+        user.set_password(new_password)
+        user.password_reset_token = None
+        user.password_reset_expiry = None
+        user.save()
+
+        # (اختیاری) ایمیل اطلاع‌رسانی تغییر پسورد
+        try:
+            email_msg = EmailMultiAlternatives(
+                subject="Your CryptoZen password was changed",
+                body="Your password was successfully updated.",
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                to=[user.email] if user.email else [],
+            )
+            email_msg.send()
+        except Exception:
+            # در صورت خطای ایمیل، عملیات اصلی انجام شده—پس فقط ادامه بدهیم.
+            pass
+
+        return Response({"message": "Password has been reset successfully."}, status=status.HTTP_200_OK)

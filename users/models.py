@@ -28,7 +28,8 @@ class User(AbstractUser):
     is_verified = models.BooleanField(default=False)
     email_verification_token = models.CharField(max_length=64, null=True, blank=True)
     awaiting_verification = models.BooleanField(default=False)
-
+    password_reset_token = models.CharField(max_length=64, null=True, blank=True)
+    password_reset_expiry = models.DateTimeField(null=True, blank=True)
     # New profile fields
     crypto_experience = models.CharField(
         max_length=20,

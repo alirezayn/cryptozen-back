@@ -32,7 +32,7 @@ urlpatterns = [
     path("api/", include("wallet.urls")),
 
     # this app create by Devmix
-    path("collab/", include("collab.urls")),
+    path("api/collab/", include("collab.urls")),
 ]
 
 from users.views import CustomTokenObtainPairView

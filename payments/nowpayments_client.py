@@ -5,8 +5,8 @@ from django.utils.timezone import now
 
 
 class NowPaymentsClient:
-    BASE_URL = settings.NOWPAYMENTS_API_URL
-    # BASE_URL = "https://api-sandbox.nowpayments.io/v1"
+    # BASE_URL = settings.NOWPAYMENTS_API_URL
+    BASE_URL = "https://api-sandbox.nowpayments.io/v1"
     API_KEY = settings.NOWPAYMENTS_API_KEY
 
     @classmethod

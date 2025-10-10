@@ -103,7 +103,8 @@ class UserSerializer(serializers.ModelSerializer):
 class UserProfileSerializer(serializers.ModelSerializer):
     full_name = serializers.SerializerMethodField()
     profile_image = serializers.SerializerMethodField()
-
+    collab_cost = serializers.SerializerMethodField()
+    collab_pro = serializers.SerializerMethodField()
     class Meta:
         model = User
         fields = [
@@ -127,7 +128,22 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "vip_interest",
             "learning_preference",
             "crypto_years_active",
+            "collab_cost",
+            "collab_pro"
         ]
+    def get_collab_cost(self, obj):
+        from collab.models import CollabLink
+        link = CollabLink.objects.filter(owner=obj).first()
+        if link:
+            return link.cost_from_join_users
+        return None
+
+    def get_collab_pro(self,obj):
+        from collab.models import CollabLink
+        link = CollabLink.objects.filter(owner=obj).first()
+        if link:
+            return link.pro_cost_available
+        return None
 
     def get_full_name(self, obj):
         return f"{obj.first_name} {obj.last_name}".strip()
