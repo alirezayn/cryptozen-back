@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from .models import User
-
+from payments.models import Subscription
 
 from rest_framework import serializers
 from django.db import IntegrityError
@@ -14,7 +14,6 @@ class UserSerializer(serializers.ModelSerializer):
     referral_code = serializers.CharField(write_only=True, required=False)
     mobile = serializers.CharField(required=True)
     email = serializers.EmailField(required=True)
-
     class Meta:
         model = User
         fields = [
@@ -105,6 +104,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
     profile_image = serializers.SerializerMethodField()
     collab_cost = serializers.SerializerMethodField()
     collab_pro = serializers.SerializerMethodField()
+    subscription_activation = serializers.SerializerMethodField()
     class Meta:
         model = User
         fields = [
@@ -129,7 +129,8 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "learning_preference",
             "crypto_years_active",
             "collab_cost",
-            "collab_pro"
+            "collab_pro",
+            "subscription_activation"
         ]
     def get_collab_cost(self, obj):
         from collab.models import CollabLink
@@ -144,6 +145,12 @@ class UserProfileSerializer(serializers.ModelSerializer):
         if link:
             return link.pro_cost_available
         return None
+    def get_subscription_activation(self, obj): 
+        subscription = Subscription.objects.filter(user=obj).first()
+        if subscription:
+            return subscription.active
+        return False
+
 
     def get_full_name(self, obj):
         return f"{obj.first_name} {obj.last_name}".strip()

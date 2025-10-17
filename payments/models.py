@@ -17,7 +17,7 @@ class Subscription(models.Model):
     active = models.BooleanField(default=True)
     cryptomus_recurring_uuid = models.CharField(max_length=100, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
-
+    want_to_upgrade = models.BooleanField(default=False)
     class Meta:
         ordering = ["-end_date"]
         verbose_name = "Subscription Plan"
@@ -40,12 +40,16 @@ class Payment(models.Model):
         ("bank", "Bank Transfer"),
         ("deposit", "Deposit"),
         ("withdraw", "Withdraw"),
+
     ]
 
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     subscription = models.ForeignKey(
         Subscription, on_delete=models.CASCADE, related_name="payments", null=True,blank=True
     )
+
+    pre_subscription = models.CharField(max_length=100,blank=True,null=True)
+
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     currency = models.CharField(max_length=10)
     method = models.CharField(

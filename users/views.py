@@ -27,7 +27,7 @@ from django.utils.timezone import now
 from django.contrib.auth import authenticate
 # from django.contrib.auth.models import update_last_login
 from rest_framework.request import Request
-
+from django.db.models import Q
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
 
@@ -41,7 +41,6 @@ class UserViewSet(viewsets.ViewSet):
         # 🔁 Cancel pending payments older than 30 min
         try:
             sub = Subscription.objects.get(user=user)
-            print(sub)
             if not sub.active:
                 pending_payment = (
                     Payment.objects.filter(subscription=sub, status="pending")
@@ -239,7 +238,7 @@ class UserViewSet(viewsets.ViewSet):
     # code by Devmix
     @action(detail=False, methods=["post"], url_path="verify/confirm", permission_classes=[permissions.AllowAny],
             authentication_classes=[])
-    def confirm_verification(self, request):
+    def confirm_verification(self, request:Request):
         """this function is check code as send by user , find user by its email."""
 
         email = request.data.get("email")
@@ -253,7 +252,7 @@ class UserViewSet(viewsets.ViewSet):
         except User.DoesNotExist:
             return Response({"error": "User not found."}, status=404)
 
-        if str(user.user_id) != str(code):
+        if str(user.user_id) != str(code).upper():
             return Response({"error": "Invalid verification code."}, status=400)
 
         user.is_verified = True
@@ -264,10 +263,20 @@ class UserViewSet(viewsets.ViewSet):
 
     @action(detail=False, methods=["post"], url_path="check/info", permission_classes=[permissions.AllowAny],
             authentication_classes=[])
-    def check_information(self, request):
+    def check_information(self, request:Request):
         """Check username & password validity"""
         username = request.data.get("username")
         password = request.data.get("password")
+
+
+        find_user = User.objects.filter(Q(username=username) | Q(email=username)).first()
+
+
+        if find_user is None:
+            return Response(
+                {"error": "Invalid username or password."},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
 
         if not username or not password:
             return Response(
@@ -275,7 +284,7 @@ class UserViewSet(viewsets.ViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        user = authenticate(username=username, password=password)
+        user = authenticate(username=find_user.username, password=password)
         if user is not None:
             return Response(
                 {"success": True, "message": "Password is correct."},
@@ -299,7 +308,16 @@ class UserViewSet(viewsets.ViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        user = authenticate(username=username, password=password)
+        find_user = User.objects.filter(Q(username=username) | Q(email=username)).first()
+        
+        if find_user is None:
+            return Response(
+                {"error": "Invalid username or password."},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
+        user = authenticate(username=find_user.username, password=password)
+
         if user is None:
             return Response(
                 {"error": "Invalid username or password."},
@@ -307,7 +325,6 @@ class UserViewSet(viewsets.ViewSet):
             )
         refresh = RefreshToken.for_user(user)
         access_token = str(refresh.access_token)
-        print(str(refresh))
         refresh_token = str(refresh)
         CollabLink.objects.get_or_create(owner=user)
 
@@ -322,7 +339,7 @@ class UserViewSet(viewsets.ViewSet):
         }, status=status.HTTP_200_OK)
     
     @action(detail=False, methods=["post"], permission_classes=[permissions.AllowAny], authentication_classes=[], url_path="refresh-token")
-    def refresh(self, request):
+    def refresh(self, request:Request):
         """Generate new access token using refresh token"""
         refresh_token = request.data.get("refresh")
 

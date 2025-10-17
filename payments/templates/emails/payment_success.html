@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Payment Successful</title>
+    <meta name="color-scheme" content="dark" />
+    <meta name="supported-color-schemes" content="dark" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+
+  <body
+    style="
+      margin: 0;
+      padding: 40px 20px;
+      font-family: 'Poppins', Arial, sans-serif;
+      background-color: #0b0f0d;
+      background-image: radial-gradient(circle at top left, #0f2118, #0b0f0d 70%);
+      color: #e5e7eb;
+      -webkit-font-smoothing: antialiased;
+    "
+  >
+    <div
+      style="
+        max-width: 600px;
+        margin: 0 auto;
+        background: rgba(18, 24, 20, 0.9);
+        border: 1px solid rgba(80, 255, 180, 0.12);
+        border-radius: 16px;
+        padding: 40px 30px;
+        box-shadow: 0 0 25px rgba(0, 255, 128, 0.08);
+        backdrop-filter: blur(8px);
+      "
+    >
+      <div style="text-align: center; margin-bottom: 25px;">
+        <div
+          style="
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #10b981, #34d399);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            color: #fff;
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.4);
+          "
+        >
+          ✓
+        </div>
+      </div>
+
+      <h2
+        style="
+          color: #34d399;
+          font-weight: 600;
+          font-size: 24px;
+          letter-spacing: 0.3px;
+          margin-bottom: 12px;
+          text-align: center;
+        "
+      >
+        Payment Successful
+      </h2>
+
+      <p
+        style="
+          font-size: 15px;
+          line-height: 1.8;
+          text-align: center;
+          color: #d1d5db;
+          margin-top: 0;
+        "
+      >
+        Hi <strong style="color: #a7f3d0;">{{ full_name }}</strong>, your payment was processed successfully.
+      </p>
+
+      <div
+        style="
+          margin: 25px auto 30px;
+          background: rgba(255, 255, 255, 0.03);
+          border: 1px solid rgba(52, 211, 153, 0.1);
+          border-radius: 12px;
+          padding: 20px;
+          text-align: center;
+        "
+      >
+        <p style="font-size: 15px; margin: 5px 0; color: #9ca3af;">
+          <strong style="color: #6ee7b7;">Amount:</strong> ${{ amount }}
+        </p>
+        <p style="font-size: 15px; margin: 5px 0; color: #9ca3af;">
+          <strong style="color: #6ee7b7;">Purpose:</strong> {{ purpose }}
+        </p>
+        {% if subscription_end_date %}
+        <p style="font-size: 15px; margin: 5px 0; color: #9ca3af;">
+          <strong style="color: #6ee7b7;">Plan:</strong> {{ plan_type }}
+        </p>
+        <p style="font-size: 15px; margin: 5px 0; color: #9ca3af;">
+          <strong style="color: #6ee7b7;">Valid until:</strong> {{ subscription_end_date }}
+        </p>
+        {% endif %}
+      </div>
+
+      <a
+        href="{{ dashboard_link }}"
+        style="
+          display: block;
+          width: fit-content;
+          margin: 0 auto;
+          text-decoration: none;
+          background: linear-gradient(135deg, #10b981, #059669);
+          color: #ffffff;
+          padding: 12px 28px;
+          border-radius: 100px;
+          font-weight: 500;
+          font-size: 15px;
+          box-shadow: 0 4px 15px rgba(16, 185, 129, 0.25);
+          transition: all 0.25s ease-in-out;
+        "
+        >Go to Dashboard</a
+      >
+
+      <hr
+        style="
+          margin: 35px 0;
+          border: none;
+          border-top: 1px solid rgba(255, 255, 255, 0.06);
+        "
+      />
+
+      <p style="font-size: 14px; color: #94a3b8; text-align: center;">
+        Thank you for trusting <strong style="color: #6ee7b7;">CryptoZen</strong> 🚀
+      </p>
+
+      <p
+        style="
+          font-size: 12px;
+          color: #64748b;
+          text-align: center;
+          margin: 8px 0 0;
+        "
+      >
+        This is an automated message. Please do not reply.
+      </p>
+    </div>
+  </body>
+</html>

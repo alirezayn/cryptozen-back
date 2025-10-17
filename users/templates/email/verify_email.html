@@ -1,50 +1,145 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8"/>
-    <title>CryptoZen Verification</title>
-    <meta name="color-scheme" content="dark"/>
-    <meta name="supported-color-schemes" content="dark"/>
-</head>
-<body bgcolor="#000000" style="margin:0;padding:0;font-family:Arial, sans-serif;">
-<div style="padding:40px 20px;text-align:center;max-width:600px;margin:auto;color:white;">
+  <meta charset="UTF-8"/>
+  <title>CryptoZen Email Verification</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="color-scheme" content="dark"/>
+  <meta name="supported-color-schemes" content="dark"/>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 
-    <!-- Title -->
-    <h1 style="font-size:24px;font-weight:bold;margin-bottom:10px;">Welcome to CryptoZen {{ fullname }}</h1>
-    <p style="color:#1AD061;font-size:15px;font-weight:600;margin-bottom:35px;">
-        Verify your email to start receiving VIP crypto signals and market insights.
+  <style>
+    body {
+      margin: 0;
+      padding: 40px 20px;
+      background: linear-gradient(135deg, #0d1f14 0%, #10251a 100%);
+      color: #e2e8f0;
+      font-family: 'Poppins', Arial, sans-serif;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      background: #111b14;
+      border-radius: 16px;
+      padding: 40px 30px;
+      border: 1px solid rgba(38, 255, 171, 0.1);
+      box-shadow: 0 0 25px rgba(0, 255, 128, 0.08);
+      text-align: center;
+    }
+
+    .title {
+      font-size: 24px;
+      font-weight: 600;
+      color: #4ade80;
+      margin-bottom: 10px;
+      text-shadow: 0 0 8px rgba(74, 222, 128, 0.3);
+    }
+
+    .subtitle {
+      color: #d1d5db;
+      font-size: 15px;
+      line-height: 1.8;
+      margin-bottom: 35px;
+    }
+
+    .card {
+      background: #0e1711;
+      border-radius: 14px;
+      padding: 30px 24px;
+      border: 1px solid rgba(74, 222, 128, 0.15);
+      box-shadow: 0 0 15px rgba(16, 185, 129, 0.1);
+    }
+
+    .card p {
+      font-size: 15px;
+      color: #cbd5e1;
+      margin-bottom: 22px;
+    }
+
+    .code {
+      background: #0b1610;
+      border-left: 3px solid #4ade80;
+      border-radius: 6px;
+      display: inline-block;
+      padding: 12px 18px;
+      font-size: 20px;
+      font-weight: 600;
+      color: #86efac;
+      letter-spacing: 2px;
+      text-shadow: 0 0 6px rgba(74, 222, 128, 0.25);
+      margin-bottom: 20px;
+    }
+
+    .button {
+      display: inline-block;
+      padding: 12px 28px;
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      border-radius: 30px;
+      text-decoration: none;
+      color: #0c0c0c;
+      font-weight: 600;
+      font-size: 15px;
+      transition: all 0.25s ease-in-out;
+      box-shadow: 0 4px 14px rgba(22, 163, 74, 0.35);
+      margin-top: 10px;
+    }
+
+    .button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(34, 197, 94, 0.4);
+    }
+
+    hr {
+      margin: 35px 0;
+      border: none;
+      border-top: 1px solid rgba(38,255,171,0.1);
+    }
+
+    .footer {
+      text-align: center;
+      font-size: 13px;
+      color: #94a3b8;
+      line-height: 1.6;
+    }
+
+    .footer a {
+      color: #4ade80;
+      text-decoration: none;
+    }
+
+    .footer a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <h1 class="title">Welcome to CryptoZen, {{ fullname }}</h1>
+    <p class="subtitle">
+      Verify your email to activate your account and start receiving VIP crypto insights.
     </p>
 
-    <!-- Card -->
-    <div style="background-color:#1a1a1a;padding:30px 20px;border-radius:12px;">
-        <p style="font-size:16px;margin-bottom:20px;color:#f0f0f0;">
-            Enter the code below or click the button to confirm your email address:
-        </p>
+    <div class="card">
+      <p>Enter the code below or click the button to confirm your email:</p>
 
-        <div style="font-size:22px;font-weight:bold;color:#CCCCCC;margin-bottom:28px;">
-            {{ verification_code }}
-        </div>
+      <div class="code">
+        {{ verification_code }}
+      </div>
 
-        <!-- Button -->
-        <table cellspacing="0" cellpadding="0" role="presentation" style="margin:auto;">
-            <tr>
-                <td align="center" bgcolor="#0B7999" style="border-radius:200px;padding:12px 28px;">
-                    <a href="{{ verification_link }}" 
-                       style="font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;display:inline-block;">
-                        Confirm Email
-                    </a>
-                </td>
-            </tr>
-        </table>
+      <div style="margin-top:20px;">
+        <a href="{{ verification_link }}" class="button">Confirm Email</a>
+      </div>
     </div>
 
-    <!-- Footer -->
-    <div style="margin-top:30px;font-size:12px;color:#aaaaaa;line-height:1.6;">
-        <p>CryptoZen 360</p>
-        <p>📧 <a href="mailto:support@cryptozen360.com" style="color:#1AD061;text-decoration:none;">support@cryptozen360.com</a></p>
-        <p>🌐 <a href="https://cryptozen360.com/" style="color:#1AD061;text-decoration:none;">cryptozen360.com</a></p>
-    </div>
+    <hr/>
 
-</div>
+    <div class="footer">
+      <p>© {{ now|default:"" }} CryptoZen</p>
+      <p>📧 <a href="mailto:support@cryptozen360.com">support@cryptozen360.com</a></p>
+      <p>🌐 <a href="https://cryptozen360.com/">cryptozen360.com</a></p>
+    </div>
+  </div>
 </body>
 </html>
