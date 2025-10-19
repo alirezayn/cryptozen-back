@@ -94,6 +94,22 @@ class UserViewSet(viewsets.ViewSet):
     @action(detail=False, methods=["put"], url_path="update-profile")
     def update_profile(self, request:Request):
         user = request.user
+        data = request.data
+        if "username" in data:
+            if User.objects.exclude(id=user.id).filter(username=data["username"]).exists():
+                return Response({"error": "This username is already taken."}, status=400)
+
+        if "email" in data:
+            if User.objects.exclude(id=user.id).filter(email=data["email"]).exists():
+                return Response({"error": "This email is already in use."}, status=400)
+
+        if "telegram_id" in data:
+            if User.objects.exclude(id=user.id).filter(telegram_id=data["telegram_id"]).exists():
+                return Response({"error": "This Telegram ID is already in use."}, status=400)
+
+
+
+
 
         # Update fields if they are provided in request
         if "username" in request.data:

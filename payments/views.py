@@ -55,6 +55,10 @@ class SubscriptionViewSet(viewsets.ViewSet):
     def subscribe(self, request:Request):
         plan = request.data.get("plan")
         subscription_exists = Subscription.objects.filter(user=request.user,active=True,plan=plan).exists()
+        # check = Payment.objects.filter(user=request.user,subscription=)
+        pending_sub = Payment.objects.filter(user=request.user,status="pending").first()
+        if pending_sub is not None:
+            pending_sub.delete()
         if subscription_exists:
             return Response({
                 "success":False,
@@ -158,34 +162,51 @@ class SubscriptionViewSet(viewsets.ViewSet):
         return Response({"payment_url": res["invoice_url"]})
 
 
-    @action(methods=["post"],detail=False)
-    def upgrade_plan(self,request:Request):
+    @action(methods=["post"], detail=False)
+    def upgrade_plan(self, request: Request):
         user = request.user
         plan = request.data.get("plan")
 
-        subscription_plan = SubscriptionPlan.objects.get(plan_type=plan)
+        # بررسی تکراری بودن اشتراک فعال
+        subscription_exists = Subscription.objects.filter(
+            user=user, active=True, plan=plan
+        ).exists()
+        if subscription_exists:
+            return Response({
+                "success": False,
+                "message": "You have already subscribed to this plan",
+                "data": None
+            }, status=400)
+
+        try:
+            subscription_plan = SubscriptionPlan.objects.get(plan_type=plan)
+        except SubscriptionPlan.DoesNotExist:
+            return Response({"success": False, "message": "Invalid plan"}, status=400)
+
+        # حذف پرداخت‌های pending قبلی
+        pending_sub = Payment.objects.filter(user=user, status="pending").first()
+        if pending_sub:
+            pending_sub.delete()
+
+        # اشتراک فعلی کاربر
+        user_current_subscription = Subscription.objects.filter(user=user).first()
+
         order_id = f"{user.id}-{int(now().timestamp())}"
-        callback_url = f"{settings.BACKEND_URL}/api/somepath/webhook/some/"
+        callback_url = f"{settings.BACKEND_URL}/api/nowpayments/webhook/"
         success_url = f"{settings.FRONTEND_URL}/payment/callback"
         cancel_url = f"{settings.FRONTEND_URL}/payment/cancel"
 
-        user_current_subscription = Subscription.objects.filter(user=user).first()
-        
+        # ساخت رکورد پرداخت جدید
         upgrade_payment = Payment.objects.create(
             user=user,
             subscription=user_current_subscription,
-            pre_subscription= user_current_subscription.plan,
+            pre_subscription=user_current_subscription.plan if user_current_subscription else None,
+            next_subscription=plan,  # ← پلن جدید اینجا ذخیره میشه
             amount=subscription_plan.price * subscription_plan.months,
             currency="USD",
+            method="crypto",
             status="pending",
         )
-        user_current_subscription.plan = plan
-        user_current_subscription.want_to_upgrade = True
-        user_current_subscription.save()
-        # payment = Payment.objects.get(subscription=user_current_subscription)
-        upgrade_payment.subscription = user_current_subscription
-        upgrade_payment.save()
-
 
         try:
             res = NowPaymentsClient.create_invoice(
@@ -197,7 +218,6 @@ class SubscriptionViewSet(viewsets.ViewSet):
                 success_url=success_url,
                 cancel_url=cancel_url,
             )
-
             if "invoice_url" not in res or "id" not in res:
                 return Response({"error": "Invoice creation failed", "details": res}, status=400)
         except Exception as e:
@@ -206,136 +226,167 @@ class SubscriptionViewSet(viewsets.ViewSet):
         upgrade_payment.payment_url = res["invoice_url"]
         upgrade_payment.cryptomus_payment_uuid = res["id"]
         upgrade_payment.save()
-        
-        link = CollabLink.objects.filter(join_users=user).first()
-        if link:
-            percent = Decimal(link.cost_from_join_users) / Decimal("100")
-            link.reward += percent * subscription_plan.price
-            link.save()
 
         return Response({"payment_url": res["invoice_url"]})
-
 
 # @method_decorator(csrf_exempt, name='dispatch')
 class NowPaymentsWebhook(APIView):
     permission_classes = [AllowAny]
 
-    def post(self, request: Request):
+    def post(self, request):
         data = request.data
         payment_id = data.get("id")
-        now_payment = NowPaymentsClient.get_invoice(payment_id)
-        wallet, _ = UserWallet.objects.get_or_create(user=request.user)
+
+        if not payment_id:
+            return Response({"success": False, "message": "Missing payment ID"}, status=400)
+
+        # دریافت اطلاعات پرداخت از NowPayments API
+        try:
+            now_payment = NowPaymentsClient.get_invoice(payment_id)
+        except Exception as e:
+            return Response({"success": False, "message": f"Error fetching invoice: {str(e)}"}, status=400)
+
         try:
             payment = Payment.objects.get(cryptomus_payment_uuid=now_payment["invoice_id"])
-            payment.payment_id = now_payment["payment_id"]
-            payment.save()
-        except:
-            return Response({"success":False,"message": "Payment not found","data":{
-                "status":"failed",
-            }}, status=400)
-        
+        except Payment.DoesNotExist:
+            return Response({"success": False, "message": "Payment not found"}, status=404)
 
-            
+        # ایجاد کیف پول کاربر در صورت عدم وجود
+        wallet, _ = UserWallet.objects.get_or_create(user=payment.user)
 
+        # ذخیره شناسه پرداخت
+        payment.payment_id = now_payment.get("payment_id")
+        payment.save()
 
-        if payment.status == "paid" and payment.subscription.active == True:
-            return Response({"success": True,"message":"your transaction is already paid and activated","data":PaymentSerializer(payment).data},status=201) 
-        
-        if payment.status == "partial":
-            return Response({"success": True,"message":"your transaction is already paid","data":PaymentSerializer(payment).data},status=201)
+        # جلوگیری از تکرار پردازش پرداخت موفق
+        if payment.status in ["paid", "partial"] and payment.subscription and payment.subscription.active:
+            return Response({
+                "success": True,
+                "message": "Payment already processed",
+                "data": PaymentSerializer(payment).data
+            }, status=200)
 
-
+        # اگر نوع پرداخت Deposit باشد (افزایش موجودی کیف پول)
         if payment.method == "deposit":
-            wallet.balance += now_payment["price_amount"]
+            wallet.balance += Decimal(now_payment["price_amount"])
             wallet.save()
             payment.status = "paid"
             payment.save()
+
             send_payment_confirmation_email(
-                user=request.user,
+                user=payment.user,
                 plan_type="Deposit",
                 amount=now_payment["price_amount"],
-                purpose="Deposit"
+                purpose="Deposit",
             )
 
+            return Response({
+                "success": True,
+                "message": f"Wallet balance increased by {now_payment['price_amount']}",
+                "data": PaymentSerializer(payment).data
+            }, status=200)
 
+        # بررسی وضعیت پرداخت در NowPayments
+        payment_status = now_payment.get("payment_status")
+        paid_amount = Decimal(str(now_payment.get("price_amount", "0")))
 
-
-            return Response({"success": True,"message":f"your wallet balance is increased by {now_payment['price_amount']}","data":PaymentSerializer(payment).data},status=201)
-        
         try:
             subscription = payment.subscription
             plan = SubscriptionPlan.objects.get(plan_type=subscription.plan)
-            plan_price = plan.price
-        except Payment.DoesNotExist:
-            return Response({"success":False,"message": "Payment not found",data:None}, status=404)
+        except Exception:
+            return Response({"success": False, "message": "Invalid subscription or plan"}, status=404)
 
-        if now_payment["payment_status"] == "finished":
-            if now_payment["price_amount"] < plan_price and payment.status not in ["partial", "paid"]:
+        plan_price = plan.price
+
+        # --- وضعیت پرداخت موفق ---
+        if payment_status == "finished":
+            # پرداخت ناقص (partial payment)
+            if paid_amount < plan_price and payment.status not in ["partial", "paid"]:
                 payment.status = "partial"
-                payment.amount = now_payment["price_amount"]
-                wallet.balance += now_payment["price_amount"]
+                payment.amount = paid_amount
+                wallet.balance += paid_amount
                 wallet.save()
                 payment.save()
+
                 return Response({
                     "success": True,
-                    "message": f"You need {plan_price - now_payment['price_amount']} USD more to activate subscription",
+                    "message": f"Partial payment received. You need {plan_price - paid_amount} USD more to activate subscription.",
                     "data": PaymentSerializer(payment).data
-                })
+                }, status=200)
 
-            elif now_payment["price_amount"] >= plan_price:
-                wallet.balance += now_payment["price_amount"]
+            # پرداخت کامل (full payment)
+            elif paid_amount >= plan_price:
+                wallet.balance += paid_amount
                 wallet.save()
+
                 subscription.active = True
-            
-                if subscription.want_to_upgrade:
-                    new_plan_type = getattr(payment, "plan_type", subscription.plan)
-                    new_plan = SubscriptionPlan.objects.get(plan_type=new_plan_type)
-              
+
+                # ✅ اگر کاربر قصد ارتقا داشته (پلن مقصد در payment.next_subscription ذخیره شده)
+                if payment.next_subscription:
+                    new_plan_type = payment.next_subscription
+                    try:
+                        new_plan = SubscriptionPlan.objects.get(plan_type=new_plan_type)
+                    except SubscriptionPlan.DoesNotExist:
+                        return Response({"success": False, "message": "Invalid target plan"}, status=400)
+
                     remaining_days = max((subscription.end_date - now().date()).days, 0)
                     subscription.plan = new_plan_type
                     subscription.start_date = now().date()
                     subscription.end_date = now().date() + relativedelta(
                         months=new_plan.months
                     ) + timedelta(days=remaining_days)
-
                     subscription.want_to_upgrade = False
-
                 else:
+                    # اگر ارتقا در کار نیست (تمدید یا اشتراک جدید)
                     subscription.start_date = now().date()
-                    subscription.end_date = now().date() + relativedelta(
-                        months=plan.months
-                    )
+                    subscription.end_date = now().date() + relativedelta(months=plan.months)
+
                 subscription.save()
+
+                # ثبت پرداخت
                 payment.status = "paid"
                 payment.save()
-                wallet.balance -= now_payment["price_amount"]
+
+                # از حساب کیف پول کم کن (در صورت استفاده از balance داخلی)
+                wallet.balance -= paid_amount
                 wallet.save()
 
-
+                # ارسال ایمیل تأیید پرداخت
                 send_payment_confirmation_email(
-                    user=request.user,
-                    plan_type=plan.plan_type,
-                    amount=now_payment["price_amount"],
+                    user=payment.user,
+                    plan_type=payment.next_subscription or plan.plan_type,
+                    amount=paid_amount,
                     purpose="Subscription",
-                    subscription_end_date=subscription.end_date
+                    subscription_end_date=subscription.end_date,
                 )
 
+                return Response({
+                    "success": True,
+                    "message": "Subscription activated successfully",
+                    "data": PaymentSerializer(payment).data
+                }, status=200)
 
-
-
-                return Response({"success":True,"message":"Subscription activated successfully","data":PaymentSerializer(payment).data},status=201)
-
-        elif now_payment["payment_status"] in ["expired", "failed"]:
+        # --- وضعیت پرداخت ناموفق ---
+        elif payment_status in ["expired", "failed"]:
             payment.status = "failed"
             payment.save()
-            subscription.active = False
-            subscription.save()
-            return Response({"success":False,"message":"Subscription activation failed and your payment status is failed","data":PaymentSerializer(payment).data},status=400)
 
-        return Response({"success":False,"message": "Invalid payment status","data": payment}, status=400)
+            if payment.subscription:
+                payment.subscription.active = False
+                payment.subscription.save()
 
+            return Response({
+                "success": False,
+                "message": "Subscription activation failed. Payment status is failed or expired.",
+                "data": PaymentSerializer(payment).data
+            }, status=400)
 
-
+        # --- سایر وضعیت‌ها ---
+        return Response({
+            "success": False,
+            "message": "Invalid or unrecognized payment status",
+            "data": PaymentSerializer(payment).data
+        }, status=400)
 
 
 
