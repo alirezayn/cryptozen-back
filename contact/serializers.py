@@ -5,7 +5,7 @@ from .models import ContactMessage, UserComment
 class ContactMessageSerializer(serializers.ModelSerializer):
     class Meta:
         model = ContactMessage
-        fields = ["name", "email", "message", "created_at"]
+        fields = ["name", "email", "message_type","message", "created_at"]
 
 
 class UserCommentSerializer(serializers.ModelSerializer):

@@ -1,0 +1,16 @@
+{% extends "admin/change_list.html" %}
+{% block object-tools-items %}
+{{ block.super }}
+<li>
+    <a class="button" href="weekly-report/">📅 Generate Weekly Report</a>
+</li>
+<li>
+    <a class="button" href="monthly-report/">🗓️ Generate Monthly Report</a>
+</li>
+<li>
+    <a class="button" href="download-weekly-report/">📅 Download Weekly Report (Excel)</a>
+</li>
+<li>
+    <a class="button" href="download-monthly-report/">🗓️ Download Monthly Report (Excel)</a>
+</li>
+{% endblock %}

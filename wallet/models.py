@@ -20,7 +20,6 @@ DESCRIPTION_MAP = {
 
 class WithdrawRequests(models.Model):
     STATUS_CHOICES = [(k, k.capitalize()) for k in DESCRIPTION_MAP.keys()]
-
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     amount = models.DecimalField(max_digits=20, decimal_places=8)
     description = models.TextField(blank=True)

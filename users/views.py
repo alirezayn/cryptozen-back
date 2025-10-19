@@ -1,4 +1,5 @@
 from rest_framework import viewsets, permissions
+from rest_framework.decorators import api_view, permission_classes
 from collab.models import CollabLink
 from .models import User
 from .serializers import (
@@ -91,7 +92,7 @@ class UserViewSet(viewsets.ViewSet):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=False, methods=["put"], url_path="update-profile")
-    def update_profile(self, request):
+    def update_profile(self, request:Request):
         user = request.user
 
         # Update fields if they are provided in request
@@ -117,8 +118,9 @@ class UserViewSet(viewsets.ViewSet):
             user.profile_image = request.FILES["profile_image"]
 
         user.save()
-        return Response({"message": "Profile updated"})
 
+        serializer = UserProfileSerializer(user, context={"request": request})
+        return Response({"message": "Profile updated", "data": serializer.data})
     @action(detail=False, methods=["post"], url_path="verify/start")
     def start_verification(self, request:Request):
         user = request.user
@@ -160,61 +162,66 @@ class UserViewSet(viewsets.ViewSet):
 
         return Response({"message": "Verification email sent"})
 
-    @action(
-        detail=False,
-        methods=["get"],
-        url_path=r"verify/confirm/(?P<token>[^/.]+)",
-        permission_classes=[AllowAny],
-    )
-    def confirm_verification(self, request, token=None):
-        try:
-            user = User.objects.get(email_verification_token=token)
-            user.is_verified = True
-            user.awaiting_verification = False
-            user.email_verification_token = None
-            user.save()
+    # @action(
+    #     detail=False,
+    #     methods=["get"],
+    #     url_path="verify/confirm_token",
+    #     permission_classes=[AllowAny],
+    # )
+    # def confirm_verification(self, request:Request, token=None):
+    #     token = request.query_params.get("token")
+    #     if not token:
+    #         return Response({"error": "Token not provided"}, status=400)
 
-            # Send confirmation VIP welcome email
-            html_content = render_to_string(
-                "email/confirm_verify.html",
-                {
-                    "user_id": user.user_id,
-                    "user_name": user.username,
-                    "activation_code": user.user_id,  # you can generate real code here
-                    "admin_username": "@cryptozen360",  # change this
-                    "website_url": "https://cryptozen360.com",
-                    "twitter_url": "https://x.com/cryptozen360",
-                    "support_email": "cryptozen360@gmail.com",
-                },
-            )
 
-            email_msg = EmailMultiAlternatives(
-                subject="🎉 Welcome to CryptoZen VIP – You're In!",
-                body="You're now a VIP! Check your Telegram for access.",
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                to=[user.email],
-            )
-            email_msg.attach_alternative(html_content, "text/html")
+    #     try:
+    #         user = User.objects.get(email_verification_token=token)
+    #         user.is_verified = True
+    #         user.awaiting_verification = False
+    #         user.email_verification_token = None
+    #         user.save()
 
-            # Embed logo
-            logo_path = os.path.join(
-                settings.BASE_DIR, "users/templates/email/logo.png"
-            )
-            with open(logo_path, "rb") as f:
-                logo = MIMEImage(f.read())
-                logo.add_header("Content-ID", "<logo_image>")
-                logo.add_header("Content-Disposition", "inline", filename="logo.png")
-                email_msg.attach(logo)
+    #         # Send confirmation VIP welcome email
+    #         html_content = render_to_string(
+    #             "email/confirm_verify.html",
+    #             {
+    #                 "user_id": user.user_id,
+    #                 "user_name": user.username,
+    #                 "activation_code": user.user_id,  # you can generate real code here
+    #                 "admin_username": "@cryptozen360",  # change this
+    #                 "website_url": "https://cryptozen360.com",
+    #                 "twitter_url": "https://x.com/cryptozen360",
+    #                 "support_email": "cryptozen360@gmail.com",
+    #             },
+    #         )
 
-            email_msg.send()
+    #         email_msg = EmailMultiAlternatives(
+    #             subject="🎉 Welcome to CryptoZen VIP – You're In!",
+    #             body="You're now a VIP! Check your Telegram for access.",
+    #             from_email=settings.DEFAULT_FROM_EMAIL,
+    #             to=[user.email],
+    #         )
+    #         email_msg.attach_alternative(html_content, "text/html")
 
-            return Response({"message": "Email verified successfully"})
+    #         # Embed logo
+    #         logo_path = os.path.join(
+    #             settings.BASE_DIR, "users/templates/email/logo.png"
+    #         )
+    #         with open(logo_path, "rb") as f:
+    #             logo = MIMEImage(f.read())
+    #             logo.add_header("Content-ID", "<logo_image>")
+    #             logo.add_header("Content-Disposition", "inline", filename="logo.png")
+    #             email_msg.attach(logo)
 
-        except User.DoesNotExist:
-            return Response(
-                {"error": "Invalid or expired verification token"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+    #         email_msg.send()
+
+    #         return Response({"message": "Email verified successfully"})
+
+    #     except User.DoesNotExist:
+    #         return Response(
+    #             {"error": "Invalid or expired verification token"},
+    #             status=status.HTTP_400_BAD_REQUEST,
+    #         )
 
     @action(detail=False, methods=["get"], url_path="verify/status")
     def verification_status(self, request):
@@ -465,3 +472,62 @@ class UserViewSet(viewsets.ViewSet):
             pass
 
         return Response({"message": "Password has been reset successfully."}, status=status.HTTP_200_OK)
+
+
+
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def confirm_verification_token(request:Request):
+    token = request.query_params.get("token")
+    if not token:
+        return Response({"error": "Token not provided"}, status=400)
+
+    try:
+        user = User.objects.get(email_verification_token=token)
+        user.is_verified = True
+        user.awaiting_verification = False
+        user.email_verification_token = None
+        user.save()
+
+        # Send confirmation VIP welcome email
+        html_content = render_to_string(
+            "email/confirm_verify.html",
+            {
+                "user_id": user.user_id,
+                "user_name": user.username,
+                "activation_code": user.user_id,
+                "admin_username": "@cryptozen360",
+                "website_url": "https://cryptozen360.com",
+                "twitter_url": "https://x.com/cryptozen360",
+                "support_email": "cryptozen360@gmail.com",
+            },
+        )
+
+        email_msg = EmailMultiAlternatives(
+            subject="🎉 Welcome to CryptoZen VIP – You're In!",
+            body="You're now a VIP! Check your Telegram for access.",
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[user.email],
+        )
+        email_msg.attach_alternative(html_content, "text/html")
+
+        # Embed logo in email
+        logo_path = os.path.join(settings.BASE_DIR, "users/templates/email/logo.png")
+        if os.path.exists(logo_path):
+            with open(logo_path, "rb") as f:
+                logo = MIMEImage(f.read())
+                logo.add_header("Content-ID", "<logo_image>")
+                logo.add_header("Content-Disposition", "inline", filename="logo.png")
+                email_msg.attach(logo)
+
+        email_msg.send()
+
+        return Response({"message": "Email verified successfully"})
+
+    except User.DoesNotExist:
+        return Response(
+            {"error": "Invalid or expired verification token"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )

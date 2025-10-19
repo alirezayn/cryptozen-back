@@ -7,6 +7,7 @@ from rest_framework.permissions import AllowAny
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
+from wallet.models import WithdrawRequests,UserWallet
 class ContactMessageViewSet(viewsets.ModelViewSet):
     queryset = ContactMessage.objects.all()
     serializer_class = ContactMessageSerializer
@@ -16,10 +17,24 @@ class ContactMessageViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
             contact_message = serializer.save()
+            
+            if contact_message.message_type == "withdraw" and request.user.is_authenticated:
+                user_wallet,created = UserWallet.objects.get_or_create(user=request.user)
+                if user_wallet.balance > 0:
+                    WithdrawRequests.objects.get_or_create(
+                        user = request.user,
+                        amount = user_wallet.balance,
+                        description = contact_message.message
+                    )
+                else:
+                    return Response(
+                {"success":False,"message": "Your balance is $0"},
+                status=status.HTTP_400_BAD_REQUEST,
+                    )      
             recipients = [
-                "Cryptozen.inquiries@gmail.com",
-                "Parhamrbt@gmail.com",
-                "Parhamfardian@gmail.com",
+                # "Cryptozen.inquiries@gmail.com",
+                # "Parhamrbt@gmail.com",
+                # "Parhamfardian@gmail.com",
                 "alirezayousefnezhadian@gmail.com"
             ]
             try:
@@ -29,7 +44,7 @@ class ContactMessageViewSet(viewsets.ModelViewSet):
                     "message": contact_message.message,
                 }
                 
-                subject = f"📩 New Contact Message from {contact_message.name}"
+                subject = f"📩 New {contact_message} request from {contact_message.name}"
 
                 html_content = render_to_string("email/contact_message.html", context)
                 text_content = strip_tags(html_content)
